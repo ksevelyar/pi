@@ -1,3 +1,7 @@
 {
-  "defaultProvider": "llama.cpp"
+  "enabledModels": [
+    "llama.cpp/*",
+    "openrouter/moonshotai/kimi-k2",
+    "openrouter/z-ai/glm-5.3-flash"
+  ]
 }
