@@ -85,6 +85,14 @@
       };
     });
 
+    devShells = forAllSystems (system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
+      default = pkgs.mkShell {
+        packages = [pkgs.python3 pkgs.jq];
+      };
+    });
+
     nixosModules.forUser = user: {pkgs, lib, ...}: let
       agentDir = "/home/${user}/.pi/agent";
       configDir = ./config;
