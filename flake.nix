@@ -109,7 +109,12 @@
           "L+ ${agentDir}/settings.json - - - - ${configDir}/settings.json"
           "L+ ${agentDir}/models.json - - - - ${configDir}/models.json"
         ]
-        ++ optionalConfig "AGENTS.md" ++ optionalConfig "skills" ++ optionalConfig "prompts" ++ optionalConfig "themes" ++ optionalConfig "extensions";
+        ++ optionalConfig "AGENTS.md"
+        ++ optionalConfig "keybindings.json"
+        ++ optionalConfig "skills"
+        ++ optionalConfig "prompts"
+        ++ optionalConfig "themes"
+        ++ optionalConfig "extensions";
     };
   };
 }
