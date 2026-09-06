@@ -7,7 +7,12 @@
     pi-src.flake = false;
   };
 
-  outputs = {self, nixpkgs, pi-src, ...}: let
+  outputs = {
+    self,
+    nixpkgs,
+    pi-src,
+    ...
+  }: let
     version = (builtins.fromJSON (builtins.readFile "${pi-src}/packages/coding-agent/package.json")).version;
     systems = ["x86_64-linux"];
     forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -85,27 +90,26 @@
       };
     });
 
-    devShells = forAllSystems (system: let
-      pkgs = nixpkgs.legacyPackages.${system};
-    in {
-      default = pkgs.mkShell {
-        packages = [pkgs.python3 pkgs.jq];
-      };
-    });
-
-    nixosModules.forUser = user: {pkgs, lib, ...}: let
+    nixosModules.forUser = user: {
+      pkgs,
+      lib,
+      ...
+    }: let
       agentDir = "/home/${user}/.pi/agent";
       configDir = ./config;
       optionalConfig = name:
         lib.optional (builtins.pathExists "${configDir}/${name}")
-          "L+ ${agentDir}/${name} - - - - ${configDir}/${name}";
+        "L+ ${agentDir}/${name} - - - - ${configDir}/${name}";
     in {
       users.users.${user}.packages = [self.packages.${pkgs.system}.default];
-      systemd.tmpfiles.rules = [
-        "d /home/${user}/.pi 0700 ${user} users - -"
-        "d ${agentDir} 0700 ${user} users - -"
-        "L+ ${agentDir}/settings.json - - - - ${configDir}/settings.json"
-      ] ++ optionalConfig "AGENTS.md" ++ optionalConfig "skills" ++ optionalConfig "prompts" ++ optionalConfig "themes";
+      systemd.tmpfiles.rules =
+        [
+          "d /home/${user}/.pi 0700 ${user} users - -"
+          "d ${agentDir} 0700 ${user} users - -"
+          "L+ ${agentDir}/settings.json - - - - ${configDir}/settings.json"
+          "L+ ${agentDir}/models.json - - - - ${configDir}/models.json"
+        ]
+        ++ optionalConfig "AGENTS.md" ++ optionalConfig "skills" ++ optionalConfig "prompts" ++ optionalConfig "themes" ++ optionalConfig "extensions";
     };
   };
 }

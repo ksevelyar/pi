@@ -2,6 +2,7 @@
   "enabledModels": [
     "llama.cpp/*",
     "openrouter/moonshotai/kimi-k2",
-    "openrouter/z-ai/glm-5.3-flash"
+    "openrouter/z-ai/glm-5.3-flash",
+    "openrouter/deepseek/deepseek-v4-flash-0731"
   ]
 }
