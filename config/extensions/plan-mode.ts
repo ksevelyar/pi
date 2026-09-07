@@ -1,7 +1,6 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core"
 import type { AssistantMessage, TextContent } from "@earendil-works/pi-ai"
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
-import { extractTodoItems, isSafeCommand, markCompletedSteps, type TodoItem } from "./utils.ts"
 
 const PLAN_MODE_TOOLS = ["read", "bash", "grep", "find", "ls"]
 const NORMAL_MODE_TOOLS = ["read", "bash", "edit", "write"]
@@ -9,6 +8,12 @@ const PLAN_MODE_DISABLED_TOOLS = new Set<string>(["edit", "write"])
 const PLAN_MANAGED_TOOLS = new Set<string>([...PLAN_MODE_TOOLS, ...NORMAL_MODE_TOOLS])
 
 const TOGGLE_SHORTCUT = "tab"
+
+interface TodoItem {
+  step: number
+  text: string
+  completed: boolean
+}
 
 interface PlanModeState {
   enabled: boolean
@@ -26,6 +31,67 @@ function getTextContent(message: AssistantMessage): string {
     .filter((block): block is TextContent => block.type === "text")
     .map((block) => block.text)
     .join("\n")
+}
+
+function cleanStepText(text: string): string {
+  let cleaned = text
+    .replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(
+      /^(Use|Run|Execute|Create|Write|Read|Check|Verify|Update|Modify|Add|Remove|Delete|Install)\s+(the\s+)?/i,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim()
+
+  if (cleaned.length > 0) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
+  }
+  if (cleaned.length > 50) {
+    cleaned = cleaned.slice(0, 47) + "..."
+  }
+  return cleaned
+}
+
+function extractTodoItems(message: string): TodoItem[] {
+  const items: TodoItem[] = []
+  const headerMatch = message.match(/\*{0,2}Plan:\*{0,2}\s*\n/i)
+  if (!headerMatch) return items
+
+  const planSection = message.slice(message.indexOf(headerMatch[0]) + headerMatch[0].length)
+  const numberedPattern = /^\s*(\d+)[.)]\s+\*{0,2}([^*\n]+)/gm
+
+  for (const match of planSection.matchAll(numberedPattern)) {
+    const text = match[2]
+      .trim()
+      .replace(/\*{1,2}$/, "")
+      .trim()
+    if (text.length > 5 && !text.startsWith("`") && !text.startsWith("/") && !text.startsWith("-")) {
+      const cleaned = cleanStepText(text)
+      if (cleaned.length > 3) {
+        items.push({ step: items.length + 1, text: cleaned, completed: false })
+      }
+    }
+  }
+  return items
+}
+
+function extractDoneSteps(message: string): number[] {
+  const steps: number[] = []
+  for (const match of message.matchAll(/\[DONE:(\d+)\]/gi)) {
+    const step = Number(match[1])
+    if (Number.isFinite(step)) steps.push(step)
+  }
+  return steps
+}
+
+function markCompletedSteps(text: string, items: TodoItem[]): number {
+  const doneSteps = extractDoneSteps(text)
+  for (const step of doneSteps) {
+    const item = items.find((t) => t.step === step)
+    if (item) item.completed = true
+  }
+  return doneSteps.length
 }
 
 export default function planModeExtension(pi: ExtensionAPI): void {
@@ -134,18 +200,6 @@ export default function planModeExtension(pi: ExtensionAPI): void {
     handler: async (ctx) => togglePlanMode(ctx),
   })
 
-  pi.on("tool_call", async (event) => {
-    if (!planModeEnabled || event.toolName !== "bash") return
-
-    const command = event.input.command as string
-    if (!isSafeCommand(command)) {
-      return {
-        block: true,
-        reason: `Plan mode: command blocked (not allowlisted). Use /plan to disable plan mode first.\nCommand: ${command}`,
-      }
-    }
-  })
-
   pi.on("context", async (event) => {
     if (planModeEnabled) return
 
@@ -177,8 +231,7 @@ You are in plan mode - a read-only exploration mode.
 
 Restrictions:
 - Built-in edit and write tools are disabled
-- Bash is restricted to an allowlist of read-only commands
-- Do NOT make any changes
+- Bash is for reading only (grep, ls, git log, cat...) - never modify anything
 
 Ask clarifying questions if anything is unsure.
 
