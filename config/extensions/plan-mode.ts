@@ -309,13 +309,6 @@ After completing a step, include a [DONE:n] tag in your response.`,
     if (todoItems.length === 0) return
     persistState()
 
-    const todoListText = todoItems.map((t, i) => `${i + 1}. ☐ ${t.text}`).join("\n")
-    const planTodoListMessage = {
-      customType: "plan-todo-list",
-      content: `**Plan Steps (${todoItems.length}):**\n\n${todoListText}`,
-      display: true,
-    }
-
     const choice = await ctx.ui.select("Plan mode - what next?", [
       "Execute the plan (track progress)",
       "Stay in plan mode",
@@ -332,15 +325,10 @@ After completing a step, include a [DONE:n] tag in your response.`,
       updateStatus(ctx)
       persistState()
 
-      const remainingList = todoItems.map((t) => `${t.step}. ${t.text}`).join("\n")
       const execMessage = `Execute the plan.
-
-Remaining steps:
-${remainingList}
 
 Start with: ${firstTodoItem.text}
 After completing a step, include a [DONE:n] tag in your response.`
-      pi.sendMessage(planTodoListMessage, { deliverAs: "followUp" })
       pi.sendMessage(
         { customType: "plan-mode-execute", content: execMessage, display: true },
         { triggerTurn: true, deliverAs: "followUp" },
@@ -348,7 +336,6 @@ After completing a step, include a [DONE:n] tag in your response.`
     } else if (choice === "Refine the plan") {
       const refinement = await ctx.ui.editor("Refine the plan:", "")
       if (refinement?.trim()) {
-        pi.sendMessage(planTodoListMessage, { deliverAs: "followUp" })
         pi.sendUserMessage(refinement.trim(), { deliverAs: "followUp" })
       }
     }
