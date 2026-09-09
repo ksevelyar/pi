@@ -1,5 +1,5 @@
 import type { AgentMessage } from "@earendil-works/pi-agent-core"
-import type { AssistantMessage, TextContent } from "@earendil-works/pi-ai"
+import type { TextContent } from "@earendil-works/pi-ai"
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
 
 const PLAN_MODE_TOOLS = ["read", "bash", "grep", "find", "ls"]
@@ -9,117 +9,20 @@ const PLAN_MANAGED_TOOLS = new Set<string>([...PLAN_MODE_TOOLS, ...NORMAL_MODE_T
 
 const TOGGLE_SHORTCUT = "tab"
 
-interface TodoItem {
-  step: number
-  text: string
-  completed: boolean
-}
-
 interface PlanModeState {
   enabled: boolean
-  todos?: TodoItem[]
-  executing?: boolean
   toolsBeforePlanMode?: string[]
-}
-
-function isAssistantMessage(m: AgentMessage): m is AssistantMessage {
-  return m.role === "assistant" && Array.isArray(m.content)
-}
-
-function getTextContent(message: AssistantMessage): string {
-  return message.content
-    .filter((block): block is TextContent => block.type === "text")
-    .map((block) => block.text)
-    .join("\n")
-}
-
-function cleanStepText(text: string): string {
-  let cleaned = text
-    .replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(
-      /^(Use|Run|Execute|Create|Write|Read|Check|Verify|Update|Modify|Add|Remove|Delete|Install)\s+(the\s+)?/i,
-      "",
-    )
-    .replace(/\s+/g, " ")
-    .trim()
-
-  if (cleaned.length > 0) {
-    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
-  }
-  if (cleaned.length > 50) {
-    cleaned = cleaned.slice(0, 47) + "..."
-  }
-  return cleaned
-}
-
-function extractTodoItems(message: string): TodoItem[] {
-  const items: TodoItem[] = []
-  const headerMatch = message.match(/\*{0,2}Plan:\*{0,2}\s*\n/i)
-  if (!headerMatch) return items
-
-  const planSection = message.slice(message.indexOf(headerMatch[0]) + headerMatch[0].length)
-  const numberedPattern = /^\s*(\d+)[.)]\s+\*{0,2}([^*\n]+)/gm
-
-  for (const match of planSection.matchAll(numberedPattern)) {
-    const text = match[2]
-      .trim()
-      .replace(/\*{1,2}$/, "")
-      .trim()
-    if (text.length > 5 && !text.startsWith("`") && !text.startsWith("/") && !text.startsWith("-")) {
-      const cleaned = cleanStepText(text)
-      if (cleaned.length > 3) {
-        items.push({ step: items.length + 1, text: cleaned, completed: false })
-      }
-    }
-  }
-  return items
-}
-
-function extractDoneSteps(message: string): number[] {
-  const steps: number[] = []
-  for (const match of message.matchAll(/\[DONE:(\d+)\]/gi)) {
-    const step = Number(match[1])
-    if (Number.isFinite(step)) steps.push(step)
-  }
-  return steps
-}
-
-function markCompletedSteps(text: string, items: TodoItem[]): number {
-  const doneSteps = extractDoneSteps(text)
-  for (const step of doneSteps) {
-    const item = items.find((t) => t.step === step)
-    if (item) item.completed = true
-  }
-  return doneSteps.length
 }
 
 export default function planModeExtension(pi: ExtensionAPI): void {
   let planModeEnabled = true
-  let executionMode = false
-  let todoItems: TodoItem[] = []
   let toolsBeforePlanMode: string[] | undefined
 
   function updateStatus(ctx: ExtensionContext): void {
-    if (executionMode && todoItems.length > 0) {
-      const completed = todoItems.filter((t) => t.completed).length
-      ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("accent", `📋 ${completed}/${todoItems.length}`))
-    } else if (planModeEnabled) {
+    if (planModeEnabled) {
       ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "⏸ plan"))
     } else {
       ctx.ui.setStatus("plan-mode", undefined)
-    }
-
-    if (executionMode && todoItems.length > 0) {
-      const lines = todoItems.map((item) => {
-        if (item.completed) {
-          return ctx.ui.theme.fg("success", "☑ ") + ctx.ui.theme.fg("muted", ctx.ui.theme.strikethrough(item.text))
-        }
-        return ctx.ui.theme.fg("muted", "☐ ") + item.text
-      })
-      ctx.ui.setWidget("plan-todos", lines)
-    } else {
-      ctx.ui.setWidget("plan-todos", undefined)
     }
   }
 
@@ -156,16 +59,12 @@ export default function planModeExtension(pi: ExtensionAPI): void {
   function persistState(): void {
     pi.appendEntry("plan-mode", {
       enabled: planModeEnabled,
-      todos: todoItems,
-      executing: executionMode,
       toolsBeforePlanMode,
     })
   }
 
   function togglePlanMode(ctx: ExtensionContext): void {
     planModeEnabled = !planModeEnabled
-    executionMode = false
-    todoItems = []
 
     if (planModeEnabled) {
       enablePlanModeTools()
@@ -181,18 +80,6 @@ export default function planModeExtension(pi: ExtensionAPI): void {
   pi.registerCommand("plan", {
     description: "Toggle plan mode (read-only exploration)",
     handler: async (_args, ctx) => togglePlanMode(ctx),
-  })
-
-  pi.registerCommand("todos", {
-    description: "Show current plan todo list",
-    handler: async (_args, ctx) => {
-      if (todoItems.length === 0) {
-        ctx.ui.notify("No todos. Create a plan first with /plan", "info")
-        return
-      }
-      const list = todoItems.map((item, i) => `${i + 1}. ${item.completed ? "✓" : "○"} ${item.text}`).join("\n")
-      ctx.ui.notify(`Plan Progress:\n${list}`, "info")
-    },
   })
 
   pi.registerShortcut(TOGGLE_SHORTCUT, {
@@ -249,96 +136,6 @@ Plan:
         },
       }
     }
-
-    if (executionMode && todoItems.length > 0) {
-      const remaining = todoItems.filter((t) => !t.completed)
-      const todoList = remaining.map((t) => `${t.step}. ${t.text}`).join("\n")
-      return {
-        message: {
-          customType: "plan-execution-context",
-          content: `[EXECUTING PLAN - Full tool access enabled]
-
-Remaining steps:
-${todoList}
-
-Execute each step in order.
-After completing a step, include a [DONE:n] tag in your response.`,
-          display: false,
-        },
-      }
-    }
-  })
-
-  pi.on("turn_end", async (event, ctx) => {
-    if (!executionMode || todoItems.length === 0) return
-    if (!isAssistantMessage(event.message)) return
-
-    const text = getTextContent(event.message)
-    if (markCompletedSteps(text, todoItems) > 0) {
-      updateStatus(ctx)
-    }
-    persistState()
-  })
-
-  pi.on("agent_end", async (event, ctx) => {
-    if (executionMode && todoItems.length > 0) {
-      if (todoItems.every((t) => t.completed)) {
-        const completedList = todoItems.map((t) => `~~${t.text}~~`).join("\n")
-        pi.sendMessage(
-          { customType: "plan-complete", content: `**Plan Complete!** ✓\n\n${completedList}`, display: true },
-          { triggerTurn: false },
-        )
-        executionMode = false
-        todoItems = []
-        updateStatus(ctx)
-        persistState()
-      }
-      return
-    }
-
-    if (!planModeEnabled || !ctx.hasUI) return
-
-    const lastAssistant = [...event.messages].reverse().find(isAssistantMessage)
-    if (lastAssistant) {
-      const extracted = extractTodoItems(getTextContent(lastAssistant))
-      if (extracted.length > 0) {
-        todoItems = extracted
-      }
-    }
-
-    if (todoItems.length === 0) return
-    persistState()
-
-    const choice = await ctx.ui.select("Plan mode - what next?", [
-      "Execute the plan (track progress)",
-      "Stay in plan mode",
-      "Refine the plan",
-    ])
-
-    if (choice?.startsWith("Execute")) {
-      const firstTodoItem = todoItems[0]
-      if (!firstTodoItem) return
-
-      planModeEnabled = false
-      executionMode = true
-      restoreNormalModeTools()
-      updateStatus(ctx)
-      persistState()
-
-      const execMessage = `Execute the plan.
-
-Start with: ${firstTodoItem.text}
-After completing a step, include a [DONE:n] tag in your response.`
-      pi.sendMessage(
-        { customType: "plan-mode-execute", content: execMessage, display: true },
-        { triggerTurn: true, deliverAs: "followUp" },
-      )
-    } else if (choice === "Refine the plan") {
-      const refinement = await ctx.ui.editor("Refine the plan:", "")
-      if (refinement?.trim()) {
-        pi.sendUserMessage(refinement.trim(), { deliverAs: "followUp" })
-      }
-    }
   })
 
   pi.on("session_start", async (_event, ctx) => {
@@ -350,31 +147,7 @@ After completing a step, include a [DONE:n] tag in your response.`
 
     if (planModeEntry?.data) {
       planModeEnabled = planModeEntry.data.enabled ?? planModeEnabled
-      todoItems = planModeEntry.data.todos ?? todoItems
-      executionMode = planModeEntry.data.executing ?? executionMode
       toolsBeforePlanMode = planModeEntry.data.toolsBeforePlanMode ?? toolsBeforePlanMode
-    }
-
-    const isResume = planModeEntry !== undefined
-    if (isResume && executionMode && todoItems.length > 0) {
-      let executeIndex = -1
-      for (let i = entries.length - 1; i >= 0; i--) {
-        const entry = entries[i] as { type: string; customType?: string }
-        if (entry.customType === "plan-mode-execute") {
-          executeIndex = i
-          break
-        }
-      }
-
-      const messages: AssistantMessage[] = []
-      for (let i = executeIndex + 1; i < entries.length; i++) {
-        const entry = entries[i]
-        if (entry.type === "message" && "message" in entry && isAssistantMessage(entry.message as AgentMessage)) {
-          messages.push(entry.message as AssistantMessage)
-        }
-      }
-      const allText = messages.map(getTextContent).join("\n")
-      markCompletedSteps(allText, todoItems)
     }
 
     if (planModeEnabled) {
