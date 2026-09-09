@@ -4,6 +4,8 @@
     "openrouter/deepseek/deepseek-v4-flash-0731"
   ],
   "modelThinkingLevels": {
-    "openrouter/z-ai/glm-5.3-flash": "low"
+    "openrouter/z-ai/glm-5.3-flash": "low",
+    "llama.cpp/Qwen3.8-27B-UD-Q3_K_XL": "low",
+    "llama.cpp/Qwen3.6-27B-Q3_K_M-mtp": "low"
   }
 }
