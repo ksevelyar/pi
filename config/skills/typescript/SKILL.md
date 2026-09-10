@@ -6,3 +6,4 @@ description: Rules for JavaScript/TypeScript code. Use when reading, writing, or
 * don't add comments, use semantic names instead
 * don't use semicolons
 * prefer a functional style
+* use oxc tools: oxfmt for formatting, oxlint for linting

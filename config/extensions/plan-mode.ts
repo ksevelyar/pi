@@ -101,7 +101,9 @@ export default function planModeExtension(pi: ExtensionAPI): void {
           return !content.includes("[PLAN MODE ACTIVE]")
         }
         if (Array.isArray(content)) {
-          return !content.some((c) => c.type === "text" && (c as TextContent).text?.includes("[PLAN MODE ACTIVE]"))
+          return !content.some(
+            (c) => c.type === "text" && (c as TextContent).text?.includes("[PLAN MODE ACTIVE]"),
+          )
         }
         return true
       }),
@@ -142,7 +144,10 @@ Plan:
     const entries = ctx.sessionManager.getEntries()
 
     const planModeEntry = entries
-      .filter((e: { type: string; customType?: string }) => e.type === "custom" && e.customType === "plan-mode")
+      .filter(
+        (e: { type: string; customType?: string }) =>
+          e.type === "custom" && e.customType === "plan-mode",
+      )
       .pop() as { data?: PlanModeState } | undefined
 
     if (planModeEntry?.data) {

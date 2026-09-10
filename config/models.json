@@ -6,8 +6,8 @@
       "models": [
         {
           "id": "Qwen3.8-27B-UD-Q3_K_XL",
-          "contextWindow": 65536,
-          "maxTokens": 65536,
+          "contextWindow": 102400,
+          "maxTokens": 102400,
           "reasoning": true,
           "thinkingLevelMap": {
             "minimal": null,
@@ -26,8 +26,8 @@
         },
         {
           "id": "Qwen3.6-27B-Q3_K_M-mtp",
-          "contextWindow": 65536,
-          "maxTokens": 65536,
+          "contextWindow": 102400,
+          "maxTokens": 102400,
           "reasoning": true,
           "thinkingLevelMap": {
             "minimal": null,
