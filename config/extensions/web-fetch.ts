@@ -3,14 +3,22 @@ import { Type } from "typebox"
 
 const DEFAULT_MAX_CHARS = 50_000
 
-const HTML_RULES: [RegExp, string][] = [
+type HtmlRule = [RegExp, string | ((...args: any[]) => string)]
+
+function applyRule(text: string, [pattern, replacement]: HtmlRule): string {
+  return typeof replacement === "string"
+    ? text.replace(pattern, replacement)
+    : text.replace(pattern, replacement)
+}
+
+const HTML_RULES: HtmlRule[] = [
   [/<!--[\s\S]*?-->/g, " "],
   [/<(script|style|noscript|svg|head)[\s\S]*?<\/\1>/gi, " "],
   [/<(br|p|div|li|tr|h[1-6])\b[^>]*>/gi, "\n"],
   [/<[^>]+>/g, " "],
 ]
 
-const ENTITY_RULES: [RegExp, string][] = [
+const ENTITY_RULES: HtmlRule[] = [
   [/&nbsp;/gi, " "],
   [/&amp;/gi, "&"],
   [/&lt;/gi, "<"],
@@ -36,7 +44,7 @@ async function fetchBody(url: string): Promise<{ contentType: string; body: stri
 
 function stripHtml(html: string): string {
   return [...HTML_RULES, ...ENTITY_RULES]
-    .reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), html)
+    .reduce(applyRule, html)
     .replace(/[ \t]+/g, " ")
     .replace(/\n\s*\n+/g, "\n")
     .trim()
