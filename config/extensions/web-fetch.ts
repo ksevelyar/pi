@@ -3,41 +3,52 @@ import { Type } from "typebox"
 
 const DEFAULT_MAX_CHARS = 50_000
 
-async function fetch_body(url: string) {
+const HTML_RULES: [RegExp, string][] = [
+  [/<!--[\s\S]*?-->/g, " "],
+  [/<(script|style|noscript|svg|head)[\s\S]*?<\/\1>/gi, " "],
+  [/<(br|p|div|li|tr|h[1-6])\b[^>]*>/gi, "\n"],
+  [/<[^>]+>/g, " "],
+]
+
+const ENTITY_RULES: [RegExp, string][] = [
+  [/&nbsp;/gi, " "],
+  [/&amp;/gi, "&"],
+  [/&lt;/gi, "<"],
+  [/&gt;/gi, ">"],
+  [/&quot;/gi, '"'],
+  [/&#39;/gi, "'"],
+  [/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code))],
+]
+
+async function fetchBody(url: string): Promise<{ contentType: string; body: string }> {
   const response = await fetch(url, {
     signal: AbortSignal.timeout(20_000),
     headers: { "User-Agent": "pi-web-fetch/1.0" },
   })
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} ${response.statusText} for ${url}`)
+  }
   return {
     contentType: response.headers.get("content-type") ?? "",
     body: await response.text(),
   }
 }
 
-function strip_html(html: string) {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, " ")
-    .replace(/<(script|style|noscript|svg|head)[\s\S]*?<\/\1>/gi, " ")
-    .replace(/<(br|p|div|li|tr|h[1-6])\b[^>]*>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
+function stripHtml(html: string): string {
+  return [...HTML_RULES, ...ENTITY_RULES]
+    .reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), html)
     .replace(/[ \t]+/g, " ")
     .replace(/\n\s*\n+/g, "\n")
     .trim()
 }
 
-async function fetch_and_strip(url: string, maxChars: number) {
-  const { contentType, body } = await fetch_body(url)
-  const text = contentType.includes("html") ? strip_html(body) : body.trim()
+async function fetchAndStrip(url: string, maxChars: number): Promise<string> {
+  const { contentType, body } = await fetchBody(url)
+  const text = contentType.includes("html") ? stripHtml(body) : body.trim()
   return text.slice(0, maxChars)
 }
 
-export default function webFetchExtension(pi: ExtensionAPI) {
+export default function webFetchExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "web_fetch",
     label: "Web Fetch",
@@ -54,7 +65,7 @@ export default function webFetchExtension(pi: ExtensionAPI) {
         params.maxChars && params.maxChars > 0 ? Math.floor(params.maxChars) : DEFAULT_MAX_CHARS
       try {
         return {
-          content: [{ type: "text", text: await fetch_and_strip(params.url, maxChars) }],
+          content: [{ type: "text", text: await fetchAndStrip(params.url, maxChars) }],
           details: {},
         }
       } catch (error) {

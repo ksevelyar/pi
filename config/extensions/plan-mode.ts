@@ -1,6 +1,4 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core"
-import type { TextContent } from "@earendil-works/pi-ai"
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
+import type { CustomEntry, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent"
 
 const PLAN_MODE_TOOLS = ["read", "bash", "grep", "find", "ls"]
 const NORMAL_MODE_TOOLS = ["read", "bash", "edit", "write"]
@@ -92,18 +90,15 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 
     return {
       messages: event.messages.filter((m) => {
-        const msg = m as AgentMessage & { customType?: string }
-        if (msg.customType === "plan-mode-context") return false
-        if (msg.role !== "user") return true
+        if ("customType" in m && m.customType === "plan-mode-context") return false
+        if (m.role !== "user") return true
 
-        const content = msg.content
+        const content = m.content
         if (typeof content === "string") {
           return !content.includes("[PLAN MODE ACTIVE]")
         }
         if (Array.isArray(content)) {
-          return !content.some(
-            (c) => c.type === "text" && (c as TextContent).text?.includes("[PLAN MODE ACTIVE]"),
-          )
+          return !content.some((c) => c.type === "text" && c.text.includes("[PLAN MODE ACTIVE]"))
         }
         return true
       }),
@@ -143,12 +138,9 @@ Plan:
   pi.on("session_start", async (_event, ctx) => {
     const entries = ctx.sessionManager.getEntries()
 
-    const planModeEntry = entries
-      .filter(
-        (e: { type: string; customType?: string }) =>
-          e.type === "custom" && e.customType === "plan-mode",
-      )
-      .pop() as { data?: PlanModeState } | undefined
+    const planModeEntry = entries.findLast(
+      (e): e is CustomEntry<PlanModeState> => e.type === "custom" && e.customType === "plan-mode",
+    )
 
     if (planModeEntry?.data) {
       planModeEnabled = planModeEntry.data.enabled ?? planModeEnabled
