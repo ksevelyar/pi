@@ -156,7 +156,6 @@
         ]
         ++ optionalConfig "AGENTS.md"
         ++ optionalConfig "keybindings.json"
-        ++ optionalConfig "skills"
         ++ optionalConfig "prompts"
         ++ optionalConfig "themes"
         ++ optionalConfig "extensions";
