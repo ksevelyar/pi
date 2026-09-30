@@ -1,5 +1,6 @@
-* ask questions if unsure
-* use nix run to run commands, like `nix run nixpkgs#python3`
-* name things descriptively: don't abbreviate, don't comment — extract logic into functions whose names say what they do
-* when writing markdown don't use long dash, bold, italic, →, don't insert empty line after headers, use #,##,### headers for structure, use * for lists
-* functions should start from verb
+* Ask questions if anything is unclear.
+* Run commands with `nix run` or `nix develop`, for example: `nix run nixpkgs#python3`.
+* Write self descriptive code, never abbreviate and never add comments, for example use semantic names for local bindings, for function names, for namespaces.
+* When writing markdown, avoid em dashes, bold, italics, semicolons and →, do not insert an empty line after a heading, use #, ##, and ### for heading structure, and use * for list markers.
+* Start function names with a verb.
+* Extract a constant to the top of the file only when at least two places use it.
