@@ -3,7 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-    pi-src.url = "github:earendil-works/pi/v0.85.1";
+    pi-src.url = "github:earendil-works/pi/v1.0.0";
     pi-src.flake = false;
   };
 
@@ -18,7 +18,7 @@
     forAllSystems = nixpkgs.lib.genAttrs systems;
 
     linkPiModules = piMonorepo: ''
-      for package in @earendil-works/chord @earendil-works/pi-agent-core @earendil-works/pi-ai @earendil-works/pi-client @earendil-works/pi-protocol @earendil-works/pi-telemetry @earendil-works/pi-tui typebox; do
+      for package in @earendil-works/chord @earendil-works/pi-agent-core @earendil-works/pi-ai @earendil-works/pi-client @earendil-works/pi-codemode @earendil-works/pi-mcp @earendil-works/pi-protocol @earendil-works/pi-server @earendil-works/pi-telemetry @earendil-works/pi-tui typebox; do
         mkdir -p "node_modules/$(dirname "$package")"
         ln -sfn "${piMonorepo}/node_modules/$package" "node_modules/$package"
       done
@@ -47,10 +47,10 @@
         pname = "pi-coding-agent";
         inherit version;
         src = pi-src;
-        npmDepsHash = "sha256-jzlsZIQzfl1FCZZ5//dHFWwMfBZQ4nRD6KB4HHifPqE=";
+        npmDepsHash = "sha256-ndEvWdB6sa5nNNtabk2OMZKUFG9x3op185deZHxFnXk=";
         modelData = pkgs.fetchurl {
           url = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-${version}.tgz";
-          hash = "sha256-r30RmGF5RFzm/oizfVfeIvgjwP/TplyuMcVVt/XpklM=";
+          hash = "sha256-85uZwpuFmPF1sQhA5dKoGYPnwM5crk19+DoQB0R9LCs=";
         };
         npmWorkspace = "packages/coding-agent";
         npmRebuildFlags = ["--ignore-scripts"];
@@ -63,16 +63,7 @@
         '';
         buildPhase = ''
           runHook preBuild
-          npx tsgo -p packages/chord/tsconfig.build.json
-          npx tsgo -p packages/tui/tsconfig.build.json
-          npx tsgo -p packages/telemetry/tsconfig.build.json
-          npx tsgo -p packages/ai/tsconfig.build.json
-          npx tsgo -p packages/agent/tsconfig.build.json
-          npx tsgo -p packages/session-backends/sqlite-node/tsconfig.build.json
-          npx tsgo -p packages/protocol/tsconfig.build.json
-          npx tsgo -p packages/client/tsconfig.build.json
-          npx tsgo -p packages/server/tsconfig.build.json
-          npm run build --workspace=packages/coding-agent
+          npm run build:offline
           runHook postBuild
         '';
         dontNpmPrune = true;
@@ -87,6 +78,8 @@
             @earendil-works/pi-agent-core:packages/agent \
             @earendil-works/pi-ai:packages/ai \
             @earendil-works/pi-client:packages/client \
+            @earendil-works/pi-codemode:packages/codemode \
+            @earendil-works/pi-mcp:packages/mcp \
             @earendil-works/pi-protocol:packages/protocol \
             @earendil-works/pi-telemetry:packages/telemetry \
             @earendil-works/pi-tui:packages/tui; do
