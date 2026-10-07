@@ -1,6 +1,14 @@
-* Ask questions if anything is unclear.
+* Ask questions if anything is unclear, never guess.
+
+## Env
 * Run commands with `nix run` or `nix develop`, for example: `nix run nixpkgs#python3`.
-* Write self descriptive code, never abbreviate and never add comments, for example use semantic names for local bindings, for function names, for namespaces.
-* When writing markdown, avoid em dashes, bold, italics, semicolons and →, do not insert an empty line after a heading, use #, ##, and ### for heading structure, and use * for list markers.
+
+## Style
+* Write self descriptive code, never abbreviate and never add comments: every local binding, function, and namespace gets a full descriptive name like minimum_kick_speed, not min_kick.
+* Name every non-obvious value with a local let binding at its place of use, so functions stay whole and readable.
 * Start function names with a verb.
-* Extract a constant to the top of the file only when at least two places use it.
+* Extract a constant to the top of the file only when at least two places use it; never move a single-use value out of its function body.
+
+## Documentation
+* When writing markdown, avoid em dashes, bold, italics, semicolons and →, do not insert an empty line after a heading, use #, ##, and ### for heading structure, and use * for list markers.
+* be very concise, every word matters
